@@ -8,18 +8,95 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+data <- read.csv(unz("./activity.zip", "activity.csv"))
+summary(data)
+```
 
+```{r}
+# Massage data into steps taken per day
+dailyData <- aggregate(steps ~ date, data, sum, na.rm=T)
+summary(dailyData)
+```
+
+```{r}
+# Massage data into steps taken per 5-minute interval
+intervalData <- aggregate(steps ~ interval, data, sum, na.rm=T)
+intervalMeans <- aggregate(steps ~ interval, data, mean, na.rm=T)
+summary(intervalData)
+summary(intervalMeans)
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+print(sprintf("Steps taken total: %d", sum(data$steps, na.rm=T)))
 
+print(sprintf("Mean steps taken per 5-minute period: %f", mean(data$steps, na.rm=T)))
+
+print(sprintf("Median steps taken per 5-minute period: %f", median(data$steps, na.rm=T)))
+
+print(sprintf("Mean steps taken per day: %f", mean(dailyData$steps, na.rm=T)))
+
+print(sprintf("Median steps taken per day: %f", median(dailyData$steps, na.rm=T)))
+
+hist(dailyData$steps)
+```
 
 ## What is the average daily activity pattern?
 
 
+```{r}
+# Plot time-series of total steps across 5-minute intervals, across all days
+plot(intervalData$steps ~ intervalData$interval, type="l")
+```
+
+```{r}
+# Which interval # is the highest overall?
+head(sapply(intervalData, sort, decreasing=T), n=1)
+```
 
 ## Imputing missing values
 
+```{r}
+# How many 5-minute intervals have missing data?
+sum(is.na(data$steps))
+# How many valid records?
+sum(!is.na(data$steps))
+# Fill in missing data with median from that interval
+data2 <- data
+data2[is.na(data2$steps),]$steps <- intervalMeans$steps
+
+# Summary of imputed data
+summary(data2)
+
+# Calculate mean, median, daily histogram with imputed data
+imputedDailyData <- aggregate(steps ~ date, data2, sum, na.rm=T)
+summary(imputedDailyData)
+print(sprintf("Mean steps taken per day: %f", mean(imputedDailyData$steps, na.rm=T)))
+print(sprintf("Median steps taken per day: %f", median(imputedDailyData$steps, na.rm=T)))
+hist(imputedDailyData$steps)
+```
+
+The mean remains unchanged but the median has increased slightly by 1 step per day.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+data2$dayOfWeek <- factor(weekdays(as.Date(data2$date)))
+levels(data2$dayOfWeek) <- c("wd", "wd", "we", "we", "wd", "wd", "wd")
+summary(data2)
+
+# Aggregate steps over weekends, weekdays
+weekdayVsWeekendSteps <- aggregate(steps ~ dayOfWeek + interval, data2, sum, na.rm=T)
+head(weekdayVsWeekendSteps)
+```
+
+```{r}
+library(lattice)
+# Plot timeseries of weekend, weekday steps, across interval identifier
+xyplot(steps ~ interval | dayOfWeek, data=weekdayVsWeekendSteps, type="l", layout=c(1,2))
+```
+
+On weekends, steps throughout the afternoon are relatively constant, while there isn't much evening or morning activity. Weekdays show the most activity at mid-day.
